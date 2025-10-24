@@ -1,0 +1,327 @@
+
+body {
+    background-color: #131317;
+    margin: 0;
+    padding: 0;
+    font-family: 'Futura', sans-serif;
+}
+
+/* MAIN LAYOUT */
+#searchbox {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 50%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+}
+
+/* ----------------------- */
+/*  SEARCH BAR AREA        */
+/* ----------------------- */
+#backsearch {
+    padding: 2%;
+    background-color: #131317;
+}
+
+#search {
+    padding-left: 20px;
+    width: 90%;
+    background-color: #1E1E1E;
+    border: none;
+    color: #FFFFFF;
+    font-family: 'Futura', sans-serif;
+    font-weight: normal;
+    font-size: 15px;
+    height: 40px;
+    outline: none;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.ask {
+    height: 40px;
+    width: 80px;
+    background: linear-gradient(135deg, #19bc8e, #16a085);
+    border-radius: 8px;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-family: 'Futura', sans-serif;
+    font-weight: normal;
+    font-size: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+}
+
+.ask:hover {
+    background: linear-gradient(135deg, #16a085, #138d75);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(25, 188, 142, 0.3);
+}
+
+/* ----------------------- */
+/*  THINKING + ANSWER BOX  */
+/* ----------------------- */
+/* hidden by default – becomes visible only when Ask is clicked */
+#ask.hidden {
+    display: none !important;
+}
+
+#ask {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 2%;
+    overflow: hidden;
+}
+
+/* Enhanced Thinking Window */
+#thinking {
+    background: linear-gradient(135deg, #2c2c54, #40407a);
+    border: 1px solid #4a4a6a;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    height: 120px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #e1e1e1;
+    position: relative;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+    display: none;
+}
+
+#thinking::before {
+    content: "🤔 Thinking...";
+    position: sticky;
+    top: 0;
+    float: right;
+    background: linear-gradient(270deg, #4a4a6a, transparent);
+    color: #19bc8e;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 5px 10px;
+    margin: -15px -15px 10px -15px;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid #4a4a6a;
+    text-align: right;
+}
+
+#thinking:empty::before {
+    content: "💭 Ready to think...";
+    color: #888;
+}
+
+/* Custom scrollbar for thinking window */
+#thinking::-webkit-scrollbar {
+    width: 8px;
+}
+
+#thinking::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+}
+
+#thinking::-webkit-scrollbar-thumb {
+    background: #19bc8e;
+    border-radius: 4px;
+}
+
+#thinking::-webkit-scrollbar-thumb:hover {
+    background: #16a085;
+}
+
+/* Enhanced Final Answer */
+#chat {
+    background: linear-gradient(135deg, #1e1e2e, #2d2d44);
+    border: 1px solid #4a4a6a;
+    border-radius: 12px;
+    padding: 20px;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-line;
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    display: none;
+}
+#chat::before {
+    content: "💡 Answer";
+    position: sticky;
+    top: 0;
+    float: right;
+    background: linear-gradient(270deg, #19bc8e, transparent);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 8px 15px;
+    margin: -20px -20px 15px -20px;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid #4a4a6a;
+    text-align: right;
+}
+
+
+#chat:empty::before {
+    content: "🌟 Your answer will appear here...";
+    color: #888;
+}
+
+/* Custom scrollbar for chat */
+#chat::-webkit-scrollbar {
+    width: 8px;
+}
+
+#chat::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+}
+
+#chat::-webkit-scrollbar-thumb {
+    background: #19bc8e;
+    border-radius: 4px;
+}
+
+#chat::-webkit-scrollbar-thumb:hover {
+    background: #16a085;
+}
+
+/* Loading animation */
+.loading-dots {
+    display: inline-block;
+    animation: loading 1.4s infinite;
+}
+
+.loading-dots::after {
+    content: '...';
+    animation: dots 1.4s infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+}
+
+/* ----------------------- */
+/*  DOCUMENT LIST AREA     */
+/* ----------------------- */
+/* now fills all remaining vertical space */
+#documents {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 2% 0 2%;
+    font-size: 14px;
+    color: #FFFFFF;
+    font-family: 'Futura', sans-serif;
+    background-color: #131317;
+    border-top: 2px solid #19bc8e;
+}
+
+#document {
+    background-color: #1e1e2e;
+    margin-bottom: 15px;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid #19bc8e;
+    transition: all 0.3s ease;
+}
+
+#document:hover {
+    background-color: #2d2d44;
+    transform: translateX(5px);
+}
+
+#date {
+    font-size: 11px;
+    color: #ACADA8;
+    font-weight: lighter;
+    margin-top: 5px;
+    cursor: pointer;
+}
+
+#tags {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #ACADA8;
+    font-style: italic;
+}
+
+#tag {
+    margin-right: 8px;
+    cursor: pointer;
+    display: inline-block;
+    background-color: #16a085;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 10px;
+    transition: all 0.2s ease;
+}
+
+#tag:hover {
+    background-color: #9e3f52;
+    transform: scale(1.0);
+}
+
+#summary {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #CCCDC6;
+    text-align: justify;
+    line-height: 1.4;
+}
+
+a {
+    color: #19bc8e;
+    font-size: 15px;
+    text-decoration: none;
+    font-weight: normal;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: #c7cac9;
+    text-decoration: underline;
+}
+
+#highlight {
+    color: #ffffff;
+    background-color: rgba(25, 188, 142, 0.2);
+    padding: 1px 3px;
+    border-radius: 2px;
+    display: inline;
+}
+
+#inline {
+    display: inline;
+}
+
+/* ----------------------- */
+/*  GRAPH AREA (unchanged) */
+/* ----------------------- */
+#graph {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100vh;
+    background-color: #131317;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    #searchbox {
+        width: 100%;
+    }
+    #graph {
+        display: none;
+    }
+}

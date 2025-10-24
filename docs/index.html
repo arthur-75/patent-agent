@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced FactGPT</title>
+
+</head>
+<body>
+    <div id="searchbox">
+        <div id="backsearch">
+            <!-- React will render search bar & button here -->
+        </div>
+
+        <!-- THINKING + ANSWER WINDOWS (hidden by default) -->
+        <div id="ask" class="hidden">
+            <div id="thinking"></div>
+            <div id="chat"></div>
+        </div>
+#mis a jour sci - work 
+        <!-- DOCUMENT RESULTS -->
+        <div id="documents"></div>
+    </div>
+    <div class="graph" id="graph"></div>
+
+    <!-- React & ReactDOM -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18.0.0/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.0.0/umd/react-dom.production.min.js"></script>
+    <!-- Babel for in-browser JSX transform -->
+    <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+    <!-- three-spritetext -->
+    <script src="https://cdn.jsdelivr.net/npm/three-spritetext@1.9.3/dist/three-spritetext.min.js"></script>
+    <!-- react-force-graph-3d -->
+    <script src="https://cdn.jsdelivr.net/npm/react-force-graph-3d@1.25.1/dist/react-force-graph-3d.min.js"></script>
+
+    <script type="text/jsx">
+        const { useRef } = React;
+
+        /* ----------------------------- */
+        /*  SEARCH + INTERACTION COMPONENT  */
+        /* ----------------------------- */
+        class Search extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    query: "",
+                    node: null,
+                    k: 40
+                };
+
+                this.timer = null;
+                this.handleChangeText = this.handleChangeText.bind(this);
+                this.handleHoverNode = this.handleHoverNode.bind(this);
+                this.handleClickTag = this.handleClickTag.bind(this);
+                this.search = this.search.bind(this);
+                this.plot = this.plot.bind(this);
+                this.highlight = this.highlight.bind(this);
+                this.handleClickDate = this.handleClickDate.bind(this);
+                this.chat = this.chat.bind(this);
+
+                // Get query and node from URL – same behaviour as before
+                const params = new URLSearchParams(window.location.search);
+                const query = params.get("query") || "";
+                const node = params.get("node") || null;
+                if (query.length > 0) {
+                    this.state.query = query;
+                    this.handlePlot(query, this.state.k, false);
+                    if (node !== null) {
+                        this.state.node = node;
+                        this.search(query + " " + node, this.state.k);
+                    }
+                }
+            }
+
+            /* --------------- UTILITIES --------------- */
+            handlePlot = (query, k, timer = true) => {
+                this.search(query, k);
+                clearTimeout(this.timer);
+                if (timer) {
+                    this.timer = setTimeout(() => {
+                        this.plot(query, k);
+                    }, 600);
+                } else {
+                    this.plot(query, k);
+                }
+            };
+
+            /* Deduplicate + filter filler text */
+            cleanFiller(text) {
+                if (!text) return "";
+                // Remove repeated "Okay, let's see" (case‑insensitive)
+                return text.replace(/(?:Okay,\s?let'?s\s?see[\.\s]*)+/gi, "").trim();
+            }
+
+            formatText(text) {
+                if (!text) return '';
+                const cleaned = this.cleanFiller(text);
+
+                return cleaned
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`(.*?)`/g, '<code style="background-color: rgba(25,188,142,0.2); padding: 2px 4px; border-radius: 3px;">$1</code>')
+                    .replace(/\n/g, '<br>');
+            }
+
+            handleChangeText(event) {
+                const value = event.target.value.toLowerCase();
+                this.setState({ query: value, node: null });
+                window.history.pushState({}, null, `?query=${encodeURIComponent(value)}`);
+                document.getElementById('ask').classList.add('hidden'); // hide thinking/answer until Ask
+                if (value.trim().length > 0) {
+                    this.handlePlot(value, this.state.k);
+                }
+            }
+
+            handleHoverNode(node) {
+                if (node !== null) {
+                    this.setState({ node: node.id });
+                    this.search(this.state.query + " " + node.id, this.state.k);
+                    window.history.pushState({}, null, `?query=${encodeURIComponent(this.state.query)}&node=${encodeURIComponent(node.id)}`);
+                }
+            }
+
+            highlight(text) {
+                if (this.state.query.length > 1) {
+                    let keywords = this.state.query;
+                    if (this.state.node !== null) {
+                        keywords = keywords + " " + this.state.node;
+                    }
+                    keywords = keywords.split(/\s/).filter(token => token.length > 2);
+                    const setKeywords = new Set(keywords);
+                    const parts = text.split(new RegExp(`(${keywords.join("|")})`, 'gi'));
+                    return <div id="inline">{parts.map((part, index) =>
+                        setKeywords.has(part.toLowerCase()) ?
+                            <div key={index} id="highlight">{part}</div> : part
+                    )}</div>;
+                } else {
+                    return <div id="inline">{text}</div>;
+                }
+            }
+
+            handleClickDate() {
+                this.search(this.state.query, this.state.k, true);
+            }
+
+            handleClickTag(tag) {
+                const query = `${this.state.query} ${tag}`;
+                this.setState({ query });
+                document.getElementById("search").value = query;
+                this.handlePlot(query, this.state.k);
+            }
+
+            /* -------------------- CHAT -------------------- */
+            chat() {
+                // show thinking + answer pane
+                const askEl = document.getElementById('ask');
+                askEl.classList.remove('hidden');
+
+                const thinkingEl = document.getElementById('thinking');
+                const chatEl = document.getElementById('chat');
+
+                // Reset panes
+                thinkingEl.innerHTML = '';
+                thinkingEl.style.display = 'block';
+                chatEl.innerHTML = '';
+                chatEl.style.display = 'none';
+
+                let fullText = '';
+
+                const decoder = new TextDecoder();
+                const query = encodeURIComponent(
+                    this.state.query + (this.state.node ? ' ' + this.state.node : '')
+                );
+
+                thinkingEl.innerHTML = 'Processing your query<span class="loading-dots"></span>';
+
+                fetch(`/chat/20/${query}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        return response.body.getReader();
+                    })
+                    .then(reader => {
+                        const processStream = ({ done, value }) => {
+                            if (done) {
+                                const thinkingMatch = fullText.match(/<think>([\s\S]*?)<\/think>/);
+                                if (thinkingMatch) {
+                                    const thinkingContent = thinkingMatch[1].trim();
+                                    const finalAnswer = fullText.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+
+                                    thinkingEl.innerHTML = this.formatText(thinkingContent);
+                                    chatEl.innerHTML = this.formatText(finalAnswer);
+                                } else {
+                                    thinkingEl.style.display = 'none';
+                                    chatEl.innerHTML = this.formatText(fullText);
+                                }
+                                chatEl.style.display = 'block';
+                                chatEl.scrollTop = 0;
+                                return;
+                            }
+
+                            const chunk = decoder.decode(value, { stream: true });
+                            if (chunk.length > fullText.length) {
+                                fullText = chunk;
+                            } else {
+                                fullText = chunk;
+                            }
+
+                            if (fullText.includes('<think>') && !fullText.includes('</think>')) {
+                                const thinkStart = fullText.indexOf('<think>') + 7;
+                                const currentThinking = fullText.slice(thinkStart);
+                                thinkingEl.innerHTML = this.formatText(currentThinking) + '<span class="loading-dots"></span>';
+                                thinkingEl.scrollTop = thinkingEl.scrollHeight;
+                            } else if (fullText.includes('</think>')) {
+                                const thinkingMatch = fullText.match(/<think>([\s\S]*?)<\/think>/);
+                                if (thinkingMatch) {
+                                    const thinkingContent = thinkingMatch[1].trim();
+                                    const afterThinking = fullText.substring(fullText.indexOf('</think>') + 8);
+
+                                    thinkingEl.innerHTML = this.formatText(thinkingContent);
+                                    chatEl.style.display = 'block';
+
+                                    if (afterThinking.trim()) {
+                                        chatEl.innerHTML = this.formatText(afterThinking) + '<span class="loading-dots"></span>';
+                                    } else {
+                                        chatEl.innerHTML = 'Preparing final answer<span class="loading-dots"></span>';
+                                    }
+                                    chatEl.scrollTop = chatEl.scrollHeight;
+                                }
+                            } else if (fullText.trim() && !fullText.includes('<think>')) {
+                                thinkingEl.style.display = 'none';
+                                chatEl.style.display = 'block';
+                                chatEl.innerHTML = this.formatText(fullText) + '<span class="loading-dots"></span>';
+                                chatEl.scrollTop = chatEl.scrollHeight;
+                            }
+
+                            return reader.read().then(processStream);
+                        };
+                        return reader.read().then(processStream);
+                    })
+                    .catch(err => {
+                        console.error('Chat error:', err);
+                        thinkingEl.style.display = 'none';
+                        chatEl.style.display = 'block';
+                        chatEl.innerHTML = `<div style="color: #ff6b6b;">❌ Connection error. Please check if the server is running on localhost:8080</div>`;
+                    });
+
+                // Update document viewer simultaneously
+                this.search(this.state.query, this.state.k, false, false);
+            }
+
+            /* -------------------- SEARCH + PLOT -------------------- */
+            search(query, k, sort = false, hide = true) {
+                fetch(`/search/${sort}/${this.state.node || 'null'}/${k}/${query.replace('/', '')}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        ReactDOM.render(
+                            <div>
+                                {Object.entries(data["documents"]).map((document, index) =>
+                                    <div key={index} id="document">
+                                        <a className="title" href={document[1]["url"]} target="_blank">
+                                            {index + 1}.&nbsp;{this.highlight(document[1]["title"]) }
+                                        </a>
+                                        <div id="date" onClick={() => this.handleClickDate()}>
+                                            {this.highlight(document[1]["date"]) }
+                                        </div>
+                                        <div id="summary">{this.highlight(document[1]["summary"]) }</div>
+                                        <div id="tags">
+                                            {document[1]["tags"].concat(document[1]["extra-tags"]).map((tag, tagIndex) =>
+                                                <div key={tagIndex} id="tag" onClick={() => this.handleClickTag(tag)}>
+                                                    {this.highlight(tag)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>,
+                            document.getElementById('documents')
+                        );
+                    })
+                    .catch(err => console.error('Search error:', err));
+            }
+
+            plot(query, k) {
+                fetch(`/plot/${k}/${query.replace('/', '')}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        ReactDOM.render(
+                            <ForceGraph3D
+                                graphData={data}
+                                backgroundColor="#131317"
+                                width={window.innerWidth / 2}
+                                height={window.innerHeight}
+                                showNavInfo={false}
+                                nodeAutoColorBy="group"
+                                linkOpacity={0.6}
+                                linkWidth={0.1}
+                                linkResolution={10}
+                                linkDirectionalParticleColor={() => "#FFFFFF"}
+                                linkDirectionalParticles={1}
+                                linkDirectionalParticleWidth={0.2}
+                                linkDirectionalParticleResolution={8}
+                                linkColor="#FFFFFF"
+                                linkThreeObjectExtend={true}
+                                linkThreeObject={link => {
+                                    const sprite = new SpriteText(`${link.relation}`);
+                                    sprite.color = '#FFFFFF';
+                                    sprite.textHeight = 2;
+                                    sprite.fontSize = 0;
+                                    sprite.fontFace = "Futura";
+                                    return sprite;
+                                }}
+                                linkPositionUpdate={(sprite, { start, end }) => {
+                                    const middlePos = Object.assign(...['x', 'y', 'z'].map(c => ({
+                                        [c]: start[c] + (end[c] - start[c]) / 2
+                                    })));
+                                    Object.assign(sprite.position, middlePos);
+                                }}
+                                nodeThreeObject={node => {
+                                    const sprite = new SpriteText(node.id);
+                                    sprite.color = node.color;
+                                    sprite.textHeight = 4;
+                                    sprite.fontSize = 50;
+                                    sprite.fontFace = "Futura";
+                                    return sprite;
+                                }}
+                                onNodeHover={node => { this.handleHoverNode(node); }}
+                            />,
+                            document.getElementById('graph')
+                        );
+                    })
+                    .catch(err => console.error('Plot error:', err));
+            }
+
+            /* -------------------- RENDER -------------------- */
+            render() {
+                return (
+                    <React.Fragment>
+                        <input
+                            id="search"
+                            type="text"
+                            placeholder="Neural Search"
+                            value={this.state.query}
+                            onChange={this.handleChangeText}
+                            autoFocus
+                        />
+                        <button className="ask" role="button" onClick={this.chat}>Ask</button>
+                    </React.Fragment>
+                );
+            }
+        }
+
+        /* Mount React */
+        ReactDOM.createRoot(document.getElementById('backsearch')).render(<Search />);
+    </script>
+    <link rel="stylesheet" href="style.css">
+
+</body>
+</html>
